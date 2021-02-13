@@ -1,5 +1,48 @@
 #![allow(warnings)]
 
+mod boards {
+    pub static easy_0 : &str = "
+        6--|1--|--2
+        8-1|-9-|---
+        -75|-84|---
+        
+        43-|-2-|561
+        518|7--|4-9
+        -96|41-|3--
+        
+        ---|-7-|---
+        -6-|-31|-5-
+        7-2|54-|6-3";
+
+    pub static medium_0 : &str = "
+        64-|-3-|--7
+        5-1|-7-|9--
+        ---|---|-1-
+
+        --4|9-8|-6-
+        -8-|--3|-2-
+        ---|4--|---
+
+        4--|157|-3-
+        2-8|3--|-4-
+        75-|---|-96
+        ";
+
+    pub static hard_0 : &str = "
+        --7|---|3-2
+        2--|--5|-1-
+        ---|8-1|4--
+
+        -1-|-96|--8
+        76-|---|-49
+        ---|---|---
+
+        ---|1-3|---
+        8-1|-6-|---
+        ---|7--|-63
+        ";
+}
+
 mod board {
     pub struct Board {
         pub cells: [u16; 3*3*3*3],
@@ -110,37 +153,60 @@ mod solver {
 
     pub fn remove_non_possibilities(board: &mut Board, index: usize) {
         
-        for check_index in get_relevant_positions(index).iter() {
-            if board.is_cell_known(*check_index) {
-                board.cells[index] = board.cells[index] & !board.cells[*check_index];
-                println!("@{:b}", board.cells[index]);
+        for pos in get_relevant_positions(index).iter() {
+            if board.is_cell_known(*pos) {
+                board.cells[index] = board.cells[index] & !board.cells[*pos];
             }
             // println!("#{}", *check_index);
         }
     }
+
+    fn fill_musts_by_starting_point(board: &mut Board, index: usize) {
+        if !board.is_cell_known(index) {
+            remove_non_possibilities(board, index);
+            if board.is_cell_known(index) {
+                for pos in get_relevant_positions(index).iter() {
+                    fill_musts_by_starting_point(board, *pos);
+                }
+            }
+        }
+    }
+
+    fn get_best_guess(board: &mut Board) -> usize {
+        for i in 0..3*3*3*3 {
+            if !board.is_cell_known(i) {
+                return i;
+            }
+        }
+
+        return 0;
+    }
+
+    pub fn fill_musts(board: &mut Board) {
+        
+        for i in 0..3*3*3*3 {
+            fill_musts_by_starting_point(board, i);
+        }
+    }
 }
+
+use std::println;
+
+use boards::easy_0;
 
 use self::board::*;
 
 fn main() {
-    let mut board = Board::init(
-        "
-        6--|1--|--2
-        8-1|-9-|---
-        -75|-84|---
-        
-        43-|-2-|561
-        518|7--|4-9
-        -96|41-|3--
-        
-        ---|-7-|---
-        -6-|-31|-5-
-        7-2|54-|6-3");
+    let mut board = Board::init(boards::hard_0);
 
     board.print();
     println!();
-    solver::remove_non_possibilities(&mut board, 45);
+    // solver::fill_musts(&mut board);
+    //board.print();
+    
+    // println!("{:b}", board.cells[2]);
+    solver::fill_musts(&mut board);
     board.print();
-    print!("{}, {}", board.is_cell_known(0), board.is_cell_known(1));
+    print!("{:b}", board.cell_by_coords(1, 2, 1, 0));
 
 }
