@@ -2,7 +2,7 @@
 
 use std::io;
 
-mod boards {
+mod boardLayouts {
     pub static easy_0 : &str = "
         6--|1--|--2
         8-1|-9-|---
@@ -42,6 +42,34 @@ mod boards {
         ---|1-3|---
         8-1|-6-|---
         ---|7--|-63
+        ";
+
+    pub static expert_0 : &str = "
+        5--|---|-36
+        974|---|---
+        6--|---|--8
+
+        --2|--6|---
+        ---|3--|2-1
+        -4-|5--|---
+
+        --5|-4-|-9-
+        ---|-97|6--
+        ---|---|-7-
+        ";
+
+    pub static expert_1 : &str = "
+        5--|---|-36
+        974|---|---
+        6--|---|--8
+
+        --2|--6|---
+        ---|3--|2-1
+        -4-|5--|---
+
+        --5|-4-|-9-
+        ---|-97|6--
+        ---|---|---
         ";
 }
 
@@ -90,7 +118,7 @@ mod board {
             return Board::is_cell_known_by_value(self.cells[index]);
         }
 
-        pub fn is_full(&mut self) -> bool {
+        pub fn is_full(& self) -> bool {
             for cell in self.cells.iter() {
                 if !Board::is_cell_known_by_value(*cell) {
                     return false;
@@ -132,10 +160,29 @@ mod board {
     }
 }
 
+
 mod solver {
     use std::io::{Read, stdin};
 
     use crate::board::{self, Board};
+
+    fn get_best_guess(board: & Board) -> usize {
+        
+        let candidates: Vec<u16> = vec![];
+        let mut min_count = 3*3;
+        let mut rtn = 0;
+        for i in 0..board.cells.len() {
+            let cell_one_count = board.cells[i].count_ones();
+            //yeah, I could check if the cell is known using boars.is_cell_known(i),
+            //  but I think using cell_one_count > 1 is a bit faster here
+            if (cell_one_count > 1 && cell_one_count < min_count) {
+                min_count = cell_one_count;
+                rtn = i;
+            }
+        }
+
+        return rtn;
+    }
 
     fn get_relevant_cells(index: usize) -> [usize; 3*3 + 3*(3-1)*2 - 1] {
         let x = index%(3*3);
@@ -166,104 +213,97 @@ mod solver {
         return rtn;
     }
 
-
-    pub fn remove_non_possibilities(board: &mut Board, index: usize) -> bool {
+    fn remove_non_possibilities(board: &mut Board, index: usize) -> bool {
         
         for rel_index in get_relevant_cells(index).iter() {
-            // let mut cell = &mut board.cells[*rel_index];
-            //that check is not a must as making the operation on known cells does nothing, but I think it saves time (maybe)
-            if !board.is_cell_known(*rel_index) {
-                // println!("{:b}, {:b}, {:b}", board.cells[*rel_index], board.cells[index], board.cells[*rel_index] & !board.cells[index]);
+            //that check is not a must as doing the operation on known cells does nothing, but I think it saves time (maybe)
+            if !board.is_cell_known(*rel_index) {            
                 board.cells[*rel_index] &= !board.cells[index];
-
-                if board.cells[*rel_index].count_ones() == 1 {remove_non_possibilities(board, *rel_index);}
-                else if board.cells[*rel_index] == 0 {return false;}
+                
+                if board.cells[*rel_index].count_ones() == 1 {
+                    if !remove_non_possibilities(board, *rel_index) {
+                        return false;
+                    }
+                }
+            }
+            else if board.cells[*rel_index] == board.cells[index] {
+                return false;
             }
         }
 
         return true;
     }
 
-    pub fn remove_all_non_possibilities(board: &mut Board) -> bool {
+    fn remove_all_non_possibilities(board: &mut Board) -> bool {
         for i  in 0..board.cells.len() {
             if board.is_cell_known(i) {
-                if !remove_non_possibilities(board, i) {return false;};
+                if !remove_non_possibilities(board, i) {
+                    return false;
+                };
             }
         }
 
         return true;
     }
 
-
-    fn get_best_guess(board: &mut Board) -> usize {
+    fn get_guess_options(val: &u16) -> Vec<u16> {
+        let mut rtn = Vec::new();
         
-        let candidates: Vec<u16> = vec![];
-        let mut min_count = 3*3;
-        let mut rtn = 0;
-        for i in 0..board.cells.len() {
-            let cell_one_count = board.cells[i].count_ones();
-            //yeah, I could check if the cell is known using boars.is_cell_known(i),
-            //  but I think using cell_one_count > 1 is a bit faster here
-            if (cell_one_count > 1 && cell_one_count < min_count) {
-                min_count = cell_one_count;
-                rtn = i;
+        for i in 0..(3*3) {
+            let i = 2_u16.pow(i);
+            if i == val & i {
+                rtn.push(i);
             }
         }
 
         return rtn;
     }
 
-    fn fill_guess(board: &mut Board, guess_index: usize) {
+    fn get_solutions(board: & Board) -> Vec<Board> {
+        let mut rtn = Vec::new();
 
-        for i in 0..(3*3) {
-            let guess = &mut board.cells[guess_index];
-            if 2_u16.pow(i) == *guess & 2_u16.pow(i) {
-                *guess = 2_u16.pow(i);
-            }
-        }
-    }
-
-    fn remove_false_guess(board: &mut Board, guess_index: usize) {
-        for i in 0..(3*3) {
-            let guess = &mut board.cells[guess_index];
-            if *guess == *guess & 2_u16.pow(i) {
-                *guess &= !2_u16.pow(i); 
-            }
-        }
-    }
-
-
-    pub fn fill_all(board: &mut Board) -> bool {
-        //if the function failed, it means that the board was unsolveable
-        if !remove_all_non_possibilities(board) {println!("failed"); return false;}
-
-        while !board.is_full() {
+        let guess_index = get_best_guess(&board);
+        
+        for guess in get_guess_options(&board.cells[guess_index]).iter() {
             let mut guess_board = board.clone();
-            let mut guess_index = get_best_guess(board);
-            fill_guess(&mut guess_board, guess_index);
-            //if the function failed, it means that the guess was wrong
-            if !fill_all(&mut guess_board) {
-                remove_false_guess(board, guess_index);
+            guess_board.cells[guess_index] = *guess;
+
+            if remove_non_possibilities(&mut guess_board, guess_index) {
+                if guess_board.is_full() {
+                    rtn.push(guess_board);
+                }
+                else {
+                    rtn.append(&mut get_solutions(&guess_board));
+                }
             }
-            else {*board = guess_board;};
         }
 
-        return true;
+        return rtn;
+    }
+
+    pub fn solve(board: &Board) -> Vec<Board> {
+        let mut start_board = board.clone();
+        remove_all_non_possibilities(&mut start_board);
+
+        return get_solutions(&start_board);
     }
 }
 
 use std::println;
 
-use boards::easy_0;
+use boardLayouts::easy_0;
 
 use self::board::*;
 
 fn main() {
-    let mut board = Board::init(boards::hard_0);
+    let mut board = Board::init(boardLayouts::expert_0);
 
     board.print();
     println!();
-    solver::fill_all(&mut board);
-    board.print();
+
+    for board in solver::solve(&mut board).iter() {
+        board.print();
+        println!();
+    }
 
 }
