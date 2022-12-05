@@ -1,9 +1,5 @@
-#![allow(warnings)]
-
-use std::io;
-
-mod boardLayouts {
-    pub static easy_0 : &str = "
+pub mod board_layouts {
+    pub static EASY_0 : &str = "
         6--|1--|--2
         8-1|-9-|---
         -75|-84|---
@@ -14,9 +10,10 @@ mod boardLayouts {
         
         ---|-7-|---
         -6-|-31|-5-
-        7-2|54-|6-3";
+        7-2|54-|6-3
+    ";
 
-    pub static medium_0 : &str = "
+    pub static MEDIUM_0 : &str = "
         64-|-3-|--7
         5-1|-7-|9--
         ---|---|-1-
@@ -28,9 +25,9 @@ mod boardLayouts {
         4--|157|-3-
         2-8|3--|-4-
         75-|---|-96
-        ";
+    ";
 
-    pub static hard_0 : &str = "
+    pub static HARD_0 : &str = "
         --7|---|3-2
         2--|--5|-1-
         ---|8-1|4--
@@ -42,9 +39,9 @@ mod boardLayouts {
         ---|1-3|---
         8-1|-6-|---
         ---|7--|-63
-        ";
+    ";
 
-    pub static expert_0 : &str = "
+    pub static EXPERT_0 : &str = "
         5--|---|-36
         974|---|---
         6--|---|--8
@@ -56,9 +53,9 @@ mod boardLayouts {
         --5|-4-|-9-
         ---|-97|6--
         ---|---|-7-
-        ";
+    ";
 
-    pub static expert_1 : &str = "
+    pub static EXPERT_1 : &str = "
         5--|---|-36
         974|---|---
         6--|---|--8
@@ -70,7 +67,7 @@ mod boardLayouts {
         --5|-4-|-9-
         ---|-97|6--
         ---|---|---
-        ";
+    ";
 }
 
 mod board {
@@ -106,9 +103,9 @@ mod board {
             return (box_y*3*3*3 + box_x*3 + sub_y*3*3 + sub_x) as usize;
         }
 
-        pub fn cell_by_coords(&mut self, box_x: i32, box_y: i32, sub_x: i32, sub_y: i32) -> &mut u16 {
-            return &mut (self.cells[Board::coords_to_cell_index(box_x, box_y, sub_x, sub_y)]);
-        }
+        // pub fn cell_by_coords(&mut self, box_x: i32, box_y: i32, sub_x: i32, sub_y: i32) -> &mut u16 {
+        //     return &mut (self.cells[Board::coords_to_cell_index(box_x, box_y, sub_x, sub_y)]);
+        // }
 
         fn is_cell_known_by_value(val: u16) -> bool {
             return val & (val-1) == 0;
@@ -162,20 +159,17 @@ mod board {
 
 
 mod solver {
-    use std::io::{Read, stdin};
-
-    use crate::board::{self, Board};
+    use crate::board::{Board};
 
     fn get_best_guess(board: & Board) -> usize {
         
-        let candidates: Vec<u16> = vec![];
         let mut min_count = 3*3;
         let mut rtn = 0;
         for i in 0..board.cells.len() {
             let cell_one_count = board.cells[i].count_ones();
             //yeah, I could check if the cell is known using boars.is_cell_known(i),
             //  but I think using cell_one_count > 1 is a bit faster here
-            if (cell_one_count > 1 && cell_one_count < min_count) {
+            if cell_one_count > 1 && cell_one_count < min_count {
                 min_count = cell_one_count;
                 rtn = i;
             }
@@ -289,14 +283,10 @@ mod solver {
     }
 }
 
-use std::println;
-
-use boardLayouts::easy_0;
-
 use self::board::*;
 
 fn main() {
-    let mut board = Board::init(boardLayouts::expert_0);
+    let mut board = Board::init(board_layouts::EXPERT_0);
 
     board.print();
     println!();
